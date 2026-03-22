@@ -1,13 +1,14 @@
 # /ᐠ｡ꞈ｡ᐟ\
 
-import pygame, sys
-from pygame.locals import *
+import pygame, sys, time
+from pygame.locals import *  # pyright: ignore[reportWildcardImportFromLibrary]
 
 class Cell():
     grid = []
     def __init__(self,ig_pos:tuple[int,int],state:bool=False)->None:
         self.__ig_pos = ig_pos
         self.__state = state
+        self.__next_state = False
         
         Cell.grid.append(self)
         if state:
@@ -39,6 +40,14 @@ class Cell():
         return self.__ig_pos
     def get_state(self)->bool:
         return self.__state
+    def get_next_state(self)->bool:
+        return self.__next_state
+    def set_next_state(self,state:bool)->None:
+        self.__next_state = state
+        return
+    def set_state(self,state:bool)->None:
+        self.__state = state
+        return
     def change_state(self)->None:
         if self.__state == True:
             self.__state = False
@@ -73,24 +82,55 @@ def check_grid(ig_pos:tuple[int,int])->Cell|None:
         if cell.get_pos() == ig_pos:
             return cell
     return None
-"""
-def purge_cells()->None: # a reviser------------------------------------------------------------------------------------------------------
+
+def purge_cells()->None:
     for cell in Cell.grid:
         if not cell.get_state():
             need_purge = True
-            for x in range(cell.__ig_pos[0]-1,cell.__ig_pos[0]+2):
-                    for y in range(cell.__ig_pos[1]-1,cell.__ig_pos[1]+2):
-                        if check_grid((x,y)) is not None:
-                            break
+            ig_pos = cell.get_pos()
+            for x in range(ig_pos[0]-1,ig_pos[0]+2):
+                    for y in range(ig_pos[1]-1,ig_pos[1]+2):
+                        result = check_grid((x,y))
+                        if result is not None:
+                            if result.get_state():
+                                need_purge = False
+            if need_purge:
+                Cell.grid.remove(cell)
     return
-"""
+
+def calcul_next_grid()->None:
+    for cell in Cell.grid:
+        neighbours = 0
+        ig_pos = cell.get_pos()
+        for x in range(ig_pos[0]-1,ig_pos[0]+2):
+                for y in range(ig_pos[1]-1,ig_pos[1]+2):
+                    result = check_grid((x,y))
+                    if result is not None and (x,y) != ig_pos:
+                        if result.get_state():
+                            neighbours += 1
+        if cell.get_state():
+            if 2 <= neighbours <= 3:
+                cell.set_next_state(True)
+            else:
+                cell.set_next_state(False)
+        else:
+            if neighbours == 3:
+                cell.set_next_state(True)
+            else:
+                cell.set_next_state(False)
+    return
+
+def update_grid()->None:
+    for cell in Cell.grid:
+        cell.set_state(cell.get_next_state())
+    return
 pygame.init()
 pygame.display.set_caption('Game of life')
 screen = pygame.display.set_mode((1200, 700), pygame.RESIZABLE)
 font = pygame.font.SysFont("Arial",24)
-
 size = 100
-
+timee = time.time()
+timing = 1
 state = "start"
 
 while state != "stop":
@@ -108,11 +148,22 @@ while state != "stop":
                     found.change_state()
             elif event.type == KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    state = "play"
-        else:
-            pass
-
-
+                    state = "play"  
+        #choose a speed at any time
+    
+    if state == "play":
+        if len(Cell.grid) != 0:#+if not stay still fo multiple turns
+            #print(time.time())
+            #find a way to limit op/s
+            if time.time() - timee >= timing:
+                timee = time.time()
+                print("calcul...")
+                calcul_next_grid()
+                print("update...")
+                update_grid()
+                print("purge...")
+                purge_cells()
+                print("end...")
     # render ----------------------------------------------------------------{)
     screen.fill((59,59,63))
     for cell in Cell.grid:
@@ -120,7 +171,7 @@ while state != "stop":
             pygame.draw.rect(screen,(255,255,255),draw_cell(cell))
         
     pygame.display.update()
-    print(len(Cell.grid))
+    #print(len(Cell.grid))
 
 pygame.quit()
 sys.exit()
