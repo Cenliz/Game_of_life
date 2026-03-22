@@ -1,4 +1,5 @@
 # /ᐠ｡ꞈ｡ᐟ\
+#TODO: add visible grid, mouvement, zoom, save, load
 
 import pygame, sys, time
 from pygame.locals import *  # pyright: ignore[reportWildcardImportFromLibrary]
