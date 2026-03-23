@@ -1,5 +1,5 @@
 # /ᐠ｡ꞈ｡ᐟ\
-#TODO: add visible grid, mouvement, zoom, save, load
+#TODO: add visible grid (fait la grid plus tard Harry), mouvement[V], zoom[V], save, load
 
 import pygame, sys, time
 from pygame.locals import *  # pyright: ignore[reportWildcardImportFromLibrary]
@@ -35,7 +35,6 @@ class Cell():
                     neighnours[6] = True
                 elif cell.get_pos() == (ig_pos[0]+1,ig_pos[1]+1):
                     neighnours[7] = True"""
-        
         return
     def get_pos(self)->tuple[int,int]:# in game pos
         return self.__ig_pos
@@ -63,19 +62,15 @@ class Cell():
 def place_cell(mouse_pos:tuple[int,int])->None:
     Cell(convert_mouse_pos(mouse_pos),True)
     return
-
 def draw_cell(cell:Cell):#->RectValue:
     cell_pos = convert_ig_pos(cell.get_pos())
     return(cell_pos[0],cell_pos[1],size,size)
-
 def convert_mouse_pos(mouse_pos:tuple[int,int])->tuple[int,int]:
     win_size = pygame.display.get_window_size()
-    return (mouse_pos[0]-win_size[0]//2)//size,(mouse_pos[1]-win_size[1]//2)//size
-
+    return (mouse_pos[0]+x_offset-win_size[0]//2)//size,(mouse_pos[1]+y_offset-win_size[1]//2)//size
 def convert_ig_pos(ig_pos:tuple[int,int])->tuple[int,int]:
     win_size = pygame.display.get_window_size()
-    return ig_pos[0]*size+win_size[0]//2,ig_pos[1]*size+win_size[1]//2
-
+    return ig_pos[0]*size-x_offset+win_size[0]//2,ig_pos[1]*size-y_offset+win_size[1]//2
 def check_grid(ig_pos:tuple[int,int])->Cell|None:
     if len(Cell.grid) == 0:
         return None
@@ -83,7 +78,6 @@ def check_grid(ig_pos:tuple[int,int])->Cell|None:
         if cell.get_pos() == ig_pos:
             return cell
     return None
-
 def purge_cells()->None:
     for cell in Cell.grid:
         if not cell.get_state():
@@ -98,7 +92,6 @@ def purge_cells()->None:
             if need_purge:
                 Cell.grid.remove(cell)
     return
-
 def calcul_next_grid()->None:
     for cell in Cell.grid:
         neighbours = 0
@@ -120,11 +113,11 @@ def calcul_next_grid()->None:
             else:
                 cell.set_next_state(False)
     return
-
 def update_grid()->None:
     for cell in Cell.grid:
         cell.set_state(cell.get_next_state())
     return
+
 pygame.init()
 pygame.display.set_caption('Game of life')
 screen = pygame.display.set_mode((1200, 700), pygame.RESIZABLE)
@@ -132,6 +125,8 @@ font = pygame.font.SysFont("Arial",24)
 size = 100
 timee = time.time()
 timing = 1
+up, down, left, right, zoom, unzoom = False, False, False, False, False, False
+x_offset, y_offset = 0,0
 state = "start"
 
 while state != "stop":
@@ -139,19 +134,57 @@ while state != "stop":
     for event in pygame.event.get():
         if event.type == QUIT:
             state = "stop"
-        if state == "start":
-            if event.type == MOUSEBUTTONDOWN:
-                mouse_pos = pygame.mouse.get_pos()
-                found = check_grid(convert_mouse_pos(mouse_pos))
-                if found == None:
-                    place_cell(mouse_pos)
-                else:
-                    found.change_state()
-            elif event.type == KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    state = "play"  
+        if event.type == MOUSEBUTTONDOWN and state == "start":
+            mouse_pos = pygame.mouse.get_pos()
+            found = check_grid(convert_mouse_pos(mouse_pos))
+            if found == None:
+                place_cell(mouse_pos)
+            else:
+                found.change_state()
+        elif event.type == KEYDOWN:
+            if event.key == K_SPACE and state == "start":
+                state = "play"  
+            if event.key == K_z or event.key == K_w:
+                up = True
+            elif event.key == K_s:
+                down = True
+            if event.key == K_q or event.key == K_a:
+                left = True
+            elif event.key == K_d:
+                right = True
+            if event.key == K_UP:
+                zoom = True
+            elif event.key == K_DOWN:
+                unzoom = True
+        elif event.type == KEYUP:
+                if event.key == K_z or event.key == K_w:
+                    up = False
+                elif event.key == K_s:
+                    down = False
+                if event.key == K_q or event.key == K_a:
+                    left = False
+                elif event.key == K_d:
+                    right = False
+                if event.key == K_UP:
+                    zoom = False
+                elif event.key == K_DOWN:
+                    unzoom = False
         #choose a speed at any time
-    
+    if up:
+        y_offset -= 1
+    elif down:
+        y_offset += 1
+    if left:
+        x_offset -= 1
+    elif right:
+        x_offset += 1
+    if zoom:
+        if size < 100:
+            size += 1
+    elif unzoom:
+        if size > 1:
+            size -= 1
+
     if state == "play":
         if len(Cell.grid) != 0:#+if not stay still fo multiple turns
             #print(time.time())
@@ -176,11 +209,3 @@ while state != "stop":
 
 pygame.quit()
 sys.exit()
-
-
-
-
-
-    
-    
-    
