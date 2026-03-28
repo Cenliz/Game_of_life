@@ -1,5 +1,6 @@
 # /ᐠ｡ꞈ｡ᐟ\
-#TODO: add visible grid (fait la grid plus tard Harry), mouvement[V], zoom[V], save, load
+#PRIO! séparer les fichier !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#TODO: add visible grid (fait la grid plus tard Harry), mouvement[V], zoom[V], save, load, (option : retour menu, speed), win_size mini 
 
 import pygame, sys, time
 from pygame.locals import *  # pyright: ignore[reportWildcardImportFromLibrary]
@@ -58,13 +59,37 @@ class Cell():
                     if check_grid((x,y)) is None:
                         Cell((x,y))
         return
+    def draw_cell(self,screen:pygame.Surface)->None:
+        cell_pos = convert_ig_pos(self.__ig_pos)
+        pygame.draw.rect(screen,(255,255,255),(cell_pos[0],cell_pos[1],size,size))
+        return  
+class Button():
+    def __init__(self,pos:tuple[int,int],width:int,height:int)->None:
+        self.__pos = (win_size[0]-pos[0],win_size[1]-pos[1])
+        self.__width = width
+        self.__height = height
+        self.default_param = (win_size,pos)
+        return   
+    def update_pos(self)->None:
+        self.__pos = (win_size[0]-self.default_param[1][0],win_size[1]-self.default_param[1][1])
+        return 
+    def get_size(self)->tuple[int,int]:
+        return self.__width,self.__height
+    def get_pos(self)->tuple[int,int]:
+        return self.__pos
+    def draw_button(self,screen:pygame.Surface)->None:
+        pygame.draw.rect(screen,(255,255,255),(self.__pos[0],self.__pos[1],self.__width,self.__height))
+        return
+class Contexte_window():
+    def __init__(self,title:str,content:str,size:tuple[int,int])->None:
+        self.__title = title
+        self.__content = content
+        self.__size = size
+        return
 
 def place_cell(mouse_pos:tuple[int,int])->None:
     Cell(convert_mouse_pos(mouse_pos),True)
     return
-def draw_cell(cell:Cell):#->RectValue:
-    cell_pos = convert_ig_pos(cell.get_pos())
-    return(cell_pos[0],cell_pos[1],size,size)
 def convert_mouse_pos(mouse_pos:tuple[int,int])->tuple[int,int]:
     win_size = pygame.display.get_window_size()
     return (mouse_pos[0]+x_offset-win_size[0]//2)//size,(mouse_pos[1]+y_offset-win_size[1]//2)//size
@@ -117,6 +142,16 @@ def update_grid()->None:
     for cell in Cell.grid:
         cell.set_state(cell.get_next_state())
     return
+def save(name:str)->None: #-------------------------------------------------------------------------------------------------------
+    purge_cells()
+    """try:
+        file = open("saves/"+name,'x')
+    except FileExistsError:
+        rewrite_win = Contexte_window()
+    #    file = open("saves/"+name,'w')
+    
+    #file.close()"""
+    return
 
 pygame.init()
 pygame.display.set_caption('Game of life')
@@ -127,6 +162,9 @@ timee = time.time()
 timing = 1
 up, down, left, right, zoom, unzoom = False, False, False, False, False, False
 x_offset, y_offset = 0,0
+win_size = pygame.display.get_window_size()
+save_button = Button((220,120),200,100)
+save("yo")
 state = "start"
 
 while state != "stop":
@@ -135,12 +173,19 @@ while state != "stop":
         if event.type == QUIT:
             state = "stop"
         if event.type == MOUSEBUTTONDOWN and state == "start":
-            mouse_pos = pygame.mouse.get_pos()
-            found = check_grid(convert_mouse_pos(mouse_pos))
-            if found == None:
-                place_cell(mouse_pos)
-            else:
-                found.change_state()
+            if event.button == 1:
+                mouse_pos = pygame.mouse.get_pos()
+                save_b_pos = save_button.get_pos()
+                if   save_b_pos[0] <= mouse_pos[0] <= save_b_pos[0] + save_button.get_size()[0] and save_b_pos[1] <= mouse_pos[1] <= save_b_pos[1] + save_button.get_size()[1]:
+                    save_win = Contexte_window("Save","What is the name of your savefile",(1000,1000))
+                    #---------------------------------------------------------------------------
+                    save(input())
+                else:
+                    found = check_grid(convert_mouse_pos(mouse_pos))
+                    if found == None:
+                        place_cell(mouse_pos)
+                    else:
+                        found.change_state()
         elif event.type == KEYDOWN:
             if event.key == K_SPACE and state == "start":
                 state = "play"  
@@ -202,8 +247,11 @@ while state != "stop":
     screen.fill((59,59,63))
     for cell in Cell.grid:
         if cell.get_state():
-            pygame.draw.rect(screen,(255,255,255),draw_cell(cell))
-        
+            cell.draw_cell(screen)
+    if state == "start":
+        win_size = pygame.display.get_window_size()
+        save_button.update_pos()
+        save_button.draw_button(screen)
     pygame.display.update()
     #print(len(Cell.grid))
 
