@@ -1,5 +1,4 @@
 # /ᐠ｡ꞈ｡ᐟ\
-#PRIO! séparer les fichier !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #TODO: add visible grid (fait la grid plus tard Harry), mouvement[V], zoom[V], save, load, (option : retour menu, speed), win_size mini 
 
 import pygame, sys, time
@@ -77,14 +76,36 @@ class Button():
         return self.__width,self.__height
     def get_pos(self)->tuple[int,int]:
         return self.__pos
-    def draw_button(self,screen:pygame.Surface)->None:
-        pygame.draw.rect(screen,(255,255,255),(self.__pos[0],self.__pos[1],self.__width,self.__height))
+    def draw_button(self)->None:
+        pygame.draw.rect(screen,(42,14,143),(self.__pos[0],self.__pos[1],self.__width,self.__height))
         return
 class Contexte_window():
-    def __init__(self,title:str,content:str,size:tuple[int,int])->None:
+    def __init__(self,title:str,content:str,size:int)->None:
         self.__title = title
         self.__content = content
         self.__size = size
+        return
+    def display(self)->None:
+        match self.__size:
+            case 0: # SMALL
+                h = 0 #temp
+                v = 0 #temp
+            case 2: # BIG
+                h = win_size[0]/8
+                v = win_size[1]/16
+            case _:
+                print("error: size not understood")
+                return
+        pygame.draw.rect(screen,(255,255,255),(h,v,win_size[0]-2*h,win_size[1]-2*v))
+        pos = ((win_size[0]/2)-(15*len(self.__title)/2),win_size[1]/8)
+        text = font.render(self.__title,True,(0,0,0))
+        screen.blit(text,pos)
+        pos = ((win_size[0]/2)-(15*len(self.__content)/2),(win_size[1]/8)+20)
+        text = font.render(self.__content,True,(0,0,0))
+        screen.blit(text,pos)
+        #temp
+        pygame.draw.rect(screen,(0,0,0),((win_size[0]/2)-1,0,2,win_size[1]))
+
         return
 
 def place_cell(mouse_pos:tuple[int,int])->None:
@@ -156,15 +177,21 @@ def save(name:str)->None: #-----------------------------------------------------
 pygame.init()
 pygame.display.set_caption('Game of life')
 screen = pygame.display.set_mode((1200, 700), pygame.RESIZABLE)
-font = pygame.font.SysFont("Arial",24)
-size = 100
-timee = time.time()
-timing = 1
-up, down, left, right, zoom, unzoom = False, False, False, False, False, False
-x_offset, y_offset = 0,0
 win_size = pygame.display.get_window_size()
-save_button = Button((220,120),200,100)
-save("yo")
+font = pygame.font.SysFont("Arial",24)
+timee = time.time()
+size = 100
+timing = 1
+x_offset, y_offset = 0,0
+up, down, left, right, zoom, unzoom = False, False, False, False, False, False
+
+# enum win.size (+/-)
+SMALL = 0
+MEDIUM = 1
+BIG = 2
+
+save_button = None
+save_win = None
 state = "start"
 
 while state != "stop":
@@ -175,11 +202,12 @@ while state != "stop":
         if event.type == MOUSEBUTTONDOWN and state == "start":
             if event.button == 1:
                 mouse_pos = pygame.mouse.get_pos()
-                save_b_pos = save_button.get_pos()
-                if   save_b_pos[0] <= mouse_pos[0] <= save_b_pos[0] + save_button.get_size()[0] and save_b_pos[1] <= mouse_pos[1] <= save_b_pos[1] + save_button.get_size()[1]:
-                    save_win = Contexte_window("Save","What is the name of your savefile",(1000,1000))
+                if save_button is not None:
+                    save_b_pos = save_button.get_pos()
+                if save_button is not None and save_b_pos[0] <= mouse_pos[0] <= save_b_pos[0] + save_button.get_size()[0] and save_b_pos[1] <= mouse_pos[1] <= save_b_pos[1] + save_button.get_size()[1]: # pyright: ignore[reportPossiblyUnboundVariable]
+                    save_win = Contexte_window("Save","What is the name of your savefile?",BIG)
                     #---------------------------------------------------------------------------
-                    save(input())
+                    #save(input())
                 else:
                     found = check_grid(convert_mouse_pos(mouse_pos))
                     if found == None:
@@ -215,6 +243,9 @@ while state != "stop":
                 elif event.key == K_DOWN:
                     unzoom = False
         #choose a speed at any time
+    
+    win_size = pygame.display.get_window_size()
+
     if up:
         y_offset -= 1
     elif down:
@@ -230,28 +261,30 @@ while state != "stop":
         if size > 1:
             size -= 1
 
+    if state == "start":
+        if save_button is None:
+            save_button = Button((220,120),200,100)
     if state == "play":
         if len(Cell.grid) != 0:#+if not stay still fo multiple turns
             #print(time.time())
             #find a way to limit op/s
             if time.time() - timee >= timing:
                 timee = time.time()
-                print("calcul...")
                 calcul_next_grid()
-                print("update...")
                 update_grid()
-                print("purge...")
                 purge_cells()
-                print("end...")
     # render ----------------------------------------------------------------{)
     screen.fill((59,59,63))
     for cell in Cell.grid:
         if cell.get_state():
             cell.draw_cell(screen)
     if state == "start":
-        win_size = pygame.display.get_window_size()
-        save_button.update_pos()
-        save_button.draw_button(screen)
+        if save_button is not None:
+            save_button.update_pos()
+            save_button.draw_button()
+
+        if save_win is not None:
+            save_win.display()
     pygame.display.update()
     #print(len(Cell.grid))
 
