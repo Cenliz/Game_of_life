@@ -1,6 +1,6 @@
 # /ᐠ｡ꞈ｡ᐟ\
-#TODO: add visible grid (fait la grid plus tard Harry), mouvement[V], zoom[V], save, load, (option : retour menu, speed), win_size mini 
-
+#TODO: add visible grid (fait la grid plus tard Harry), pas modif les Cells quand click on win, save, load, (option : retour menu, speed), win_size mini 
+# reminder: prio 0->5 : cells->rewrite_sure_button
 import pygame, sys, time
 from pygame.locals import *  # pyright: ignore[reportWildcardImportFromLibrary]
 
@@ -17,24 +17,6 @@ class Cell():
                 for y in range(ig_pos[1]-1,ig_pos[1]+2):
                     if check_grid((x,y)) is None:
                         Cell((x,y))
-        """neighnours = [False,False,False,False,False,False,False,False]
-            for cell in Cell.grid:
-                if cell.get_pos() == (ig_pos[0]-1,ig_pos[1]-1):
-                    neighnours[0] = True
-                elif cell.get_pos() == (ig_pos[0],ig_pos[1]-1):
-                    neighnours[1] = True
-                elif cell.get_pos() == (ig_pos[0]+1,ig_pos[1]-1):
-                    neighnours[2] = True
-                elif cell.get_pos() == (ig_pos[0]-1,ig_pos[1]):
-                    neighnours[3] = True
-                elif cell.get_pos() == (ig_pos[0]+1,ig_pos[1]):
-                    neighnours[4] = True
-                elif cell.get_pos() == (ig_pos[0]-1,ig_pos[1]+1):
-                    neighnours[5] = True
-                elif cell.get_pos() == (ig_pos[0],ig_pos[1]+1):
-                    neighnours[6] = True
-                elif cell.get_pos() == (ig_pos[0]+1,ig_pos[1]+1):
-                    neighnours[7] = True"""
         return
     def get_pos(self)->tuple[int,int]:# in game pos
         return self.__ig_pos
@@ -62,29 +44,41 @@ class Cell():
         cell_pos = convert_ig_pos(self.__ig_pos)
         pygame.draw.rect(screen,(255,255,255),(cell_pos[0],cell_pos[1],size,size))
         return  
+    def __str__(self) -> str:
+        return str(self.__ig_pos)
 class Button():
-    def __init__(self,pos:tuple[int,int],width:int,height:int)->None:
-        self.__pos = (win_size[0]-pos[0],win_size[1]-pos[1])
+    def __init__(self,title:str,priority:int,pos:tuple[int,int],width:int,height:int)->None:
+        self.__title = title
+        self.__priority = priority
+        self.__pos = pos
         self.__width = width
         self.__height = height
-        self.default_param = (win_size,pos)
+        self.__reduction_ratio = (win_size[0]/pos[0],win_size[1]/pos[1])
         return   
-    def update_pos(self)->None:
-        self.__pos = (win_size[0]-self.default_param[1][0],win_size[1]-self.default_param[1][1])
-        return 
     def get_size(self)->tuple[int,int]:
         return self.__width,self.__height
     def get_pos(self)->tuple[int,int]:
         return self.__pos
+    def get_prio(self)->int:
+        return self.__priority
+    def is_collided(self,pos:tuple[int,int])->bool:
+        if self.__pos[0]-self.__width//2 <= pos[0] <= self.__pos[0]+self.__width//2 and self.__pos[1]-self.__height//2 <= pos[1] <= self.__pos[1]+self.__height//2:
+            return True
+        return False
     def draw_button(self)->None:
-        pygame.draw.rect(screen,(42,14,143),(self.__pos[0],self.__pos[1],self.__width,self.__height))
+        self.__pos = (win_size[0]//self.__reduction_ratio[0],win_size[1]//self.__reduction_ratio[1])
+        pygame.draw.rect(screen,(42,14,143),(self.__pos[0]-self.__width//2,self.__pos[1]-self.__height//2,self.__width,self.__height))
         return
+    def __str__(self) -> str:
+        return self.__title
 class Contexte_window():
-    def __init__(self,title:str,content:str,size:int)->None:
+    def __init__(self,title:str,priority:int,size:int)->None:
         self.__title = title
-        self.__content = content
+        self.__priority = priority
         self.__size = size
         return
+    def get_prio(self)->int:
+        return self.__priority
     def display(self)->None:
         match self.__size:
             case 0: # SMALL
@@ -97,16 +91,19 @@ class Contexte_window():
                 print("error: size not understood")
                 return
         pygame.draw.rect(screen,(255,255,255),(h,v,win_size[0]-2*h,win_size[1]-2*v))
-        pos = ((win_size[0]/2)-(15*len(self.__title)/2),win_size[1]/8)
-        text = font.render(self.__title,True,(0,0,0))
-        screen.blit(text,pos)
-        pos = ((win_size[0]/2)-(15*len(self.__content)/2),(win_size[1]/8)+20)
-        text = font.render(self.__content,True,(0,0,0))
-        screen.blit(text,pos)
+        match self.__title:
+            case "Save":
+                pos = ((win_size[0]/2)-(15*len(self.__title)/2),win_size[1]/8)
+                text = font.render(self.__title,True,(0,0,0))
+                screen.blit(text,pos)
+                pos = ((win_size[0]/2)-190,(win_size[1]/8)+20)
+                text = font.render("What is the name of your savefile?",True,(0,0,0))
+                screen.blit(text,pos)
         #temp
-        pygame.draw.rect(screen,(0,0,0),((win_size[0]/2)-1,0,2,win_size[1]))
-
+        pygame.draw.rect(screen,(0,0,0),((win_size[0]/2)-1,0,2,win_size[1])) # middle line
         return
+    def __str__(self) -> str:
+        return self.__title
 
 def place_cell(mouse_pos:tuple[int,int])->None:
     Cell(convert_mouse_pos(mouse_pos),True)
@@ -165,13 +162,16 @@ def update_grid()->None:
     return
 def save(name:str)->None: #-------------------------------------------------------------------------------------------------------
     purge_cells()
-    """try:
+    try:
         file = open("saves/"+name,'x')
     except FileExistsError:
-        rewrite_win = Contexte_window()
-    #    file = open("saves/"+name,'w')
-    
-    #file.close()"""
+        rewrite_win = Contexte_window("Rewrite",4,SMALL)
+        return # temp
+        file = open("saves/"+name,'w') # rewrite anyway for now
+    for c in Cell.grid:
+        if c.get_state():
+            file.write(c.__str__())
+    file.close()
     return
 
 pygame.init()
@@ -190,8 +190,8 @@ SMALL = 0
 MEDIUM = 1
 BIG = 2
 
-save_button = None
-save_win = None
+save_button, save_done_button, save_return_button = None, None, None
+save_win, rewrite_win = None,None
 state = "start"
 
 while state != "stop":
@@ -202,12 +202,13 @@ while state != "stop":
         if event.type == MOUSEBUTTONDOWN and state == "start":
             if event.button == 1:
                 mouse_pos = pygame.mouse.get_pos()
-                if save_button is not None:
-                    save_b_pos = save_button.get_pos()
-                if save_button is not None and save_b_pos[0] <= mouse_pos[0] <= save_b_pos[0] + save_button.get_size()[0] and save_b_pos[1] <= mouse_pos[1] <= save_b_pos[1] + save_button.get_size()[1]: # pyright: ignore[reportPossiblyUnboundVariable]
-                    save_win = Contexte_window("Save","What is the name of your savefile?",BIG)
-                    #---------------------------------------------------------------------------
-                    #save(input())
+                if save_done_button is not None and save_done_button.is_collided(mouse_pos):
+                   save("autosave")  
+                #elif save_return_button:
+                elif save_button is not None and save_button.is_collided(mouse_pos):
+                    if save_win is None:
+                        save_win = Contexte_window("Save",2,BIG)
+                
                 else:
                     found = check_grid(convert_mouse_pos(mouse_pos))
                     if found == None:
@@ -245,6 +246,8 @@ while state != "stop":
         #choose a speed at any time
     
     win_size = pygame.display.get_window_size()
+    buttons = [save_button, save_done_button, save_return_button]
+    wins = [save_win, rewrite_win]
 
     if up:
         y_offset -= 1
@@ -263,8 +266,8 @@ while state != "stop":
 
     if state == "start":
         if save_button is None:
-            save_button = Button((220,120),200,100)
-    if state == "play":
+            save_button = Button("Save",1,(win_size[0]-110,win_size[1]-60),200,100)
+    elif state == "play":
         if len(Cell.grid) != 0:#+if not stay still fo multiple turns
             #print(time.time())
             #find a way to limit op/s
@@ -273,18 +276,27 @@ while state != "stop":
                 calcul_next_grid()
                 update_grid()
                 purge_cells()
+    if save_win is not None:
+        if save_done_button is None:
+            save_done_button = Button("Done",3,(win_size[0]//3,win_size[1]-win_size[1]//4),200,100)
+        if save_return_button is None:
+            save_return_button = Button("Return",3,(win_size[0]-win_size[0]//3,win_size[1]-win_size[1]//4),200,100)
+
     # render ----------------------------------------------------------------{)
     screen.fill((59,59,63))
-    for cell in Cell.grid:
+    for cell in Cell.grid: # prio 0
         if cell.get_state():
             cell.draw_cell(screen)
+            
     if state == "start":
-        if save_button is not None:
-            save_button.update_pos()
-            save_button.draw_button()
+        for prio in range(1,6):
+            for b in buttons:
+                if b is not None and b.get_prio() == prio:
+                    b.draw_button()
+            for w in wins:
+                if w is not None and w.get_prio() == prio:
+                    w.display()
 
-        if save_win is not None:
-            save_win.display()
     pygame.display.update()
     #print(len(Cell.grid))
 
